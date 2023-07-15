@@ -1,2 +1,2 @@
-# YAML-Templates
+# YAML Templates
 Templates used for pipelines
