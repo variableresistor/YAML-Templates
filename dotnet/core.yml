@@ -1,0 +1,57 @@
+parameters:
+  - name: Project
+    displayName: Pattern(s) of the project to target the publish
+    type: object
+  - name: Solution
+    displayName: Solution file pattern
+    default: '**/*.sln'
+  - name: RuntimeVersion
+    type: number
+
+steps:
+  - task: UseDotNet@2
+    displayName: "Use DotNet ${{parameters.RuntimeVersion}}.x SDK"
+    inputs:
+      packageType: 'sdk'
+      version: '${{parameters.RuntimeVersion}}.x'
+
+  - task: DotNetCoreCLI@2
+    displayName: "Build the solution ${{parameters.Solution}}"
+    inputs:
+      command: build
+      projects: ${{parameters.Solution}}
+
+  - task: DotNetCoreCLI@2
+    displayName: "dotnet publish ${{parameters.Project}}"
+    inputs:
+      command: 'publish'
+      publishWebProjects: false
+      projects: ${{parameters.Project}}
+      arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory) -p:DebugType=None -p:Version=$(Build.BuildNumber) -p:AssemblyVersion=$(Build.BuildNumber) -p:FileVersion=$(Build.BuildNumber) -nowarn:NU1701'
+
+  - task: DotNetCoreCLI@2
+    displayName: "dotnet test ${{parameters.Solution}}"
+    inputs:
+        command: 'test'
+        projects: ${{parameters.Solution}}
+        arguments: '--configuration Release --collect:"XPlat Code Coverage;Format=Cobertura"'
+        testRunTitle: '$(Build.DefinitionName)-$(Build.SourceBranchName)'
+
+  - task: reportgenerator@5
+    displayName: "Create coverage reports in HTML format to be display in Azure DevOps and XML for summary"
+    inputs:
+      reports: "$(Agent.TempDirectory)/**/coverage.cobertura.xml"
+      targetdir: '$(Agent.TempDirectory)/reports'
+      reporttypes: 'Cobertura;HtmlInline_AzurePipelines'
+
+  - task: PublishCodeCoverageResults@1
+    displayName: 'Publish code coverage to AzureDevOps'
+    inputs:
+        codeCoverageTool: Cobertura
+        summaryFilelocation: '$(System.DefaultWorkingDirectory)\reports\Cobertura.xml'
+        reportDirectory: '$(System.DefaultWorkingDirectory)\reports'
+    env:
+      DISABLE_COVERAGE_AUTOGENERATE: 'true'
+
+  - publish: $(Build.ArtifactStagingDirectory)
+    displayName: "Publish build artifacts for ${{parameters.Project}}"

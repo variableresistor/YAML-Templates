@@ -1,0 +1,74 @@
+parameters:
+  - name: Project
+    displayName: Pattern(s) of the project to target the publish
+    type: object
+  - name: Solution
+    displayName: Solution file pattern
+    default: '**/*.sln'
+
+steps:
+  - task: NuGetToolInstaller@1
+    displayName: NuGet Tool Installer
+    inputs:
+      versionSpec: '5.x'
+
+  - task: NuGetCommand@2
+    displayName: NuGet Restore ${{parameters.Solution}}
+    inputs:
+      restoreSolution: ${{parameters.Solution}}
+
+  - task: MSBuild@1
+    displayName: Build ${{parameters.Solution}}
+    inputs:
+      Solution: ${{parameters.Solution}}
+      msbuildArchitecture: 'x64'
+      platform: 'AnyCPU'
+      configuration: 'Release'
+      maximumCpuCount: true
+
+  - task: VisualStudioTestPlatformInstaller@1
+    displayName: 'Visual Studio Test Platform Installer'
+    inputs:
+      packageFeedSelector: nugetOrg
+      versionSelector: specificVersion
+      testPlatformVersion: '16.x'
+
+  - task: UseDotNet@2
+    displayName: "Use DotNet 6.x SDK"
+    inputs:
+      packageType: 'sdk'
+      version: '6.x'
+
+  - task: VSTest@2
+    displayName: Run Unit Tests (No UI Tests)
+    inputs:
+      testSelector: 'testAssemblies'
+      testAssemblyVer2: |
+        **\*test*.dll
+        !**\*TestAdapter.dll
+        !**\obj\**
+      searchFolder: '$(System.DefaultWorkingDirectory)'
+      uiTests: false
+      distributionBatchType: 'basedOnAssembly'
+      platform: 'AnyCPU'
+      configuration: 'Release'
+      otherConsoleOptions: '/collect:"XPlat Code Coverage;Format=Cobertura"'
+
+  - task: reportgenerator@5
+    displayName: "Create coverage reports in HTML format to be display in Azure DevOps and XML for summary"
+    inputs:
+      reports: "$(Agent.TempDirectory)/**/coverage.cobertura.xml"
+      targetdir: '$(Agent.TempDirectory)/reports'
+      reporttypes: 'Cobertura;HtmlInline_AzurePipelines'
+
+  - task: PublishCodeCoverageResults@1
+    displayName: 'Publish code coverage to AzureDevOps'
+    inputs:
+        codeCoverageTool: Cobertura
+        summaryFilelocation: '$(System.DefaultWorkingDirectory)\reports\Cobertura.xml'
+        reportDirectory: '$(System.DefaultWorkingDirectory)\reports'
+    env:
+      DISABLE_COVERAGE_AUTOGENERATE: 'true'
+
+  - publish: $(Build.ArtifactStagingDirectory)
+    displayName: "Publish build artifacts for ${{parameters.Project}}"
