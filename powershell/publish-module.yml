@@ -18,7 +18,9 @@ steps:
         Remove-Module -Name $env:ModuleName -ErrorAction SilentlyContinue
         Uninstall-Module -Name $env:ModuleName -AllVersion -Verbose
       }
-      $env:ModulePath += ";$env:Pipeline_Workspace"
+      $env:PSModulePath += ";$env:Pipeline_Workspace"
+      if (Test-Path ".\.github") { Remove-Item ".\.github" -Recurse -Verbose }
+      gci -File -Filter "*.Tests.*ps*" -Recurse | Remove-Item -Verbose
       Import-Module $env:ModuleName -Verbose -RequiredVersion $env:Version
 
       Publish-Module -Name $env:ModuleName -Repository PSGallery -NuGetApiKey $env:NuGetApiKey -Verbose -WhatIf
