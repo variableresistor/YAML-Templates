@@ -8,6 +8,8 @@ parameters:
     default: 5.3.3
 
 steps:
+  - template: powershell/register-psgallery.yml
+
   - pwsh: |
       $AllPesterModules = Get-Module Pester -ListAvailable
       $LatestPesterMdule = $AllPesterModules | Sort-Object -Property Version -Desc | Select-Object -First 1
@@ -20,24 +22,23 @@ steps:
         $AllPesterModules
         "Pester was up-to-date"
       }
-    displayName: 'Install Pester V${{parameters.MinimumPesterVersion}}+'
+    displayName: 'Install Pester'
     env:
       MinimumVersion: ${{parameters.MinimumPesterVersion}}
 
   - pwsh: |
       Import-Module ./$env:ModuleName.psd1
-
-      $ResultsFolder = New-Item -Path $env:Agent_TempDirectory -Name Pester ItemType Directory
+      New-Item -Path $env:Agent_TempDirectory -Name Pester -ItemType Directory -Force | Out-Null
 
       Import-Module -Name Pester -MinimumVersion $env:MinimumVersion
       $Config = New-PesterConfiguration
       $Config.CodeCoverage.Enabled = $true
       $Config.CodeCoverage.Path = @('./*.psm1')
-      $Config.CodeCoverage.OutputPath = "$($ResultsFolder.FullName)/coverage.xml"
+      $Config.CodeCoverage.OutputPath = "$env:Agent_TempDirectory/Pester/coverage.xml"
       $Config.CodeCoverage.OutputFormat = 'JaCoCo'
       $Config.Run.Exit = $true
       $Config.TestResult.Enabled = $true
-      $Config.TestResult.OutputPath = "$($ResultsFolder.FullName)/test-results.xml"
+      $Config.TestResult.OutputPath = "$env:Agent_TempDirectory/Pester/test-results.xml"
       $Config.TestResult.OutputFormat = 'NUnitXml'
       $Config.Output.CIFormat = 'AzureDevOps'
       $Splat = @{
@@ -61,19 +62,9 @@ steps:
       failTaskOnFailedTests: true
       mergeTestResults: true
 
-  - task: reportgenerator@5
-    displayName: 'Consolidate code coverage reports into custom formats'
-    inputs:
-      reports: '$(Agent.TempDirectory)/**/coverage.cml'
-      targetdir: '$(Agent.TempDirectory)/reports'
-      reporttypes: 'Covertura;HtmlInline_AzurePipelines'
-
   - task: PublishCodeCoverageResults@1
     displayName: 'Publish Code Coverage to Azure DevOps'
     inputs:
-      codeCoverageTool: Cobertura
+      codeCoverageTool: JaCoCo
       summaryFileLocation: '$(Agent.TempDirectory)/reports/Cobertura.xml'
-      reportDirectory: '$(Agent.TempDirectory)/reports'
       pathToSources: '$(Pipeline.Workspace)/${{parameters.ModuleName}}'
-    env:
-      DISABLE_COVERAGE_AUTOGENERATE: 'true'
