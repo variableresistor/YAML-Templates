@@ -23,7 +23,7 @@ steps:
       gci -File -Filter "*.Tests.*ps*" -Recurse | Remove-Item -Verbose
       Import-Module $env:ModuleName -Verbose -RequiredVersion $env:Version
 
-      Publish-Module -Name $env:ModuleName -Repository PSGallery -NuGetApiKey $env:NuGetApiKey -Verbose -WhatIf
+      Publish-Module -Name $env:ModuleName -Repository PSGallery -NuGetApiKey $env:NuGetApiKey -Verbose
     displayName: 'Publish the module'
     workingDirectory: $(Pipeline.Workspace)/${{parameters.ModuleName}}
     env:
