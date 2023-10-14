@@ -22,6 +22,8 @@ steps:
       $env:PSModulePath += ";$env:Pipeline_Workspace"
       if (Test-Path ".\.github") { Remove-Item ".\.github" -Recurse -Verbose }
       gci -File -Filter "*.Tests.*ps*" -Recurse | Remove-Item -Verbose
+      if (Test-Path ".\azure-pipelines.yml") { Remove-Item ".\azure-pipelines.yml" -Verbose }
+      gci -File -Filter "*.Tests.*ps*" -Recurse | Remove-Item -Verbose
       Import-Module $env:ModuleName -Verbose -RequiredVersion $env:Version
 
       Publish-Module -Name $env:ModuleName -Repository PSGallery -NuGetApiKey $env:NuGetApiKey -Verbose
