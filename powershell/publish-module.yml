@@ -7,6 +7,7 @@ parameters:
 steps:
   - task: UseDotNet@2
     displayName: Use Dotnet 7.x
+    condition: and(succeeded(),eq(variables['Build.SourceBranchName'],'main'))
     inputs:
       version: 7.x
 
@@ -26,6 +27,7 @@ steps:
       Publish-Module -Name $env:ModuleName -Repository PSGallery -NuGetApiKey $env:NuGetApiKey -Verbose
     displayName: 'Publish the module'
     workingDirectory: $(Pipeline.Workspace)/${{parameters.ModuleName}}
+    condition: and(succeeded(),eq(variables['Build.SourceBranchName'],'main'))
     env:
       Version: $(Build.BuildNumber)
       ModuleName: ${{parameters.ModuleName}}
