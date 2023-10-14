@@ -20,13 +20,15 @@ steps:
         Uninstall-Module -Name $env:ModuleName -AllVersion -Verbose
       }
       $env:PSModulePath += ";$env:Pipeline_Workspace"
-      if (Test-Path ".\.github") { Remove-Item ".\.github" -Recurse -Verbose }
+      if (Test-Path ".\.git*") { Remove-Item ".\.git*" -Recurse -Verbose }
       gci -File -Filter "*.Tests.*ps*" -Recurse | Remove-Item -Verbose
       if (Test-Path ".\azure-pipelines.yml") { Remove-Item ".\azure-pipelines.yml" -Verbose }
       gci -File -Filter "*.Tests.*ps*" -Recurse | Remove-Item -Verbose
       Import-Module $env:ModuleName -Verbose -RequiredVersion $env:Version
 
       Publish-Module -Name $env:ModuleName -Repository PSGallery -NuGetApiKey $env:NuGetApiKey -Verbose
+      git reset --hard
+      git clean -ffdx
     displayName: 'Publish the module'
     workingDirectory: $(Pipeline.Workspace)/${{parameters.ModuleName}}
     condition: and(succeeded(),eq(variables['Build.SourceBranchName'],'main'))
